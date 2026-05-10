@@ -1,1 +1,713 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>日本株テーマトラッカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f2eb;
+  --surface: #faf8f3;
+  --surface2: #edeae0;
+  --border: #d8d3c5;
+  --ink: #1a1714;
+  --ink2: #5a5448;
+  --ink3: #9a9080;
+  --red: #c0392b;
+  --green: #1a6b3c;
+  --red-bg: #fdf0ee;
+  --green-bg: #eef6f1;
+  --gold: #b8860b;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Kaisei Decol', serif;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:var(--sans); background:var(--bg); color:var(--ink); min-height:100vh; }
 
+/* Header */
+header {
+  background:var(--ink); color:var(--bg);
+  padding:0 16px; height:52px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:200;
+}
+.logo { font-family:var(--serif); font-size:16px; display:flex; align-items:center; gap:8px; }
+.logo-dot { width:7px; height:7px; background:#c0392b; border-radius:50%; animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+.header-right { display:flex; align-items:center; gap:10px; }
+.market-pill {
+  font-family:var(--mono); font-size:10px; padding:3px 8px;
+  border-radius:20px; background:rgba(255,255,255,0.1);
+}
+.refresh-btn {
+  background:none; border:1px solid #444; border-radius:6px;
+  color:#ccc; font-size:18px; width:32px; height:32px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s;
+}
+.refresh-btn:hover { border-color:#fff; color:#fff; }
+.refresh-btn.spinning { animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Index bar */
+.index-bar {
+  background:var(--surface2); border-bottom:1px solid var(--border);
+  padding:8px 16px; display:flex; gap:20px; overflow-x:auto;
+  font-family:var(--mono); font-size:11px;
+  scrollbar-width:none;
+}
+.index-bar::-webkit-scrollbar { display:none; }
+.idx { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.idx-name { color:var(--ink3); }
+.idx-val { font-weight:500; }
+.up { color:var(--green); }
+.down { color:var(--red); }
+
+/* Status bar */
+.status-bar {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:6px 16px; font-family:var(--mono); font-size:10px;
+  color:var(--ink3); display:flex; justify-content:space-between; align-items:center;
+}
+
+/* Layout */
+.layout { display:flex; min-height:calc(100vh - 52px); }
+
+/* Sidebar */
+.sidebar {
+  width:200px; flex-shrink:0;
+  background:var(--surface); border-right:1px solid var(--border);
+  overflow-y:auto; position:sticky; top:52px; height:calc(100vh - 52px);
+}
+@media (max-width:640px) {
+  .sidebar { display:none; }
+  .mobile-theme-bar { display:flex !important; }
+}
+.mobile-theme-bar {
+  display:none; overflow-x:auto; background:var(--surface);
+  border-bottom:1px solid var(--border); padding:8px 12px; gap:8px;
+  scrollbar-width:none;
+}
+.mobile-theme-bar::-webkit-scrollbar { display:none; }
+.mobile-theme-btn {
+  flex-shrink:0; padding:6px 12px; border-radius:20px;
+  border:1px solid var(--border); background:none;
+  font-family:var(--sans); font-size:12px; cursor:pointer;
+  white-space:nowrap; transition:all 0.15s;
+}
+.mobile-theme-btn.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+
+.sidebar-label {
+  font-family:var(--mono); font-size:9px; color:var(--ink3);
+  letter-spacing:0.1em; text-transform:uppercase;
+  padding:12px 14px 6px;
+}
+.theme-btn {
+  display:flex; align-items:center; justify-content:space-between;
+  width:100%; padding:10px 14px; border:none; border-left:3px solid transparent;
+  background:none; cursor:pointer; text-align:left; transition:all 0.12s;
+  font-family:var(--sans);
+}
+.theme-btn:hover { background:var(--surface2); }
+.theme-btn.active { background:var(--surface2); border-left-color:var(--ink); }
+.theme-btn-left { display:flex; align-items:center; gap:8px; }
+.theme-icon { font-size:14px; }
+.theme-name { font-size:12px; font-weight:500; }
+.theme-chg { font-family:var(--mono); font-size:11px; }
+
+/* Main */
+.main { flex:1; overflow:hidden; }
+
+/* Theme header */
+.theme-head {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:16px;
+}
+.theme-head-top { display:flex; align-items:center; justify-content:space-between; }
+.theme-head-left { display:flex; align-items:center; gap:10px; }
+.theme-head-icon { font-size:24px; }
+.theme-head-title { font-family:var(--serif); font-size:20px; }
+.theme-head-stats { display:flex; gap:16px; }
+.stat { text-align:right; }
+.stat-label { font-family:var(--mono); font-size:9px; color:var(--ink3); text-transform:uppercase; }
+.stat-val { font-family:var(--mono); font-size:18px; font-weight:500; }
+.theme-head-desc { font-size:12px; color:var(--ink2); margin-top:8px; line-height:1.5; }
+
+/* Table */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th {
+  font-family:var(--mono); font-size:9px; color:var(--ink3);
+  text-transform:uppercase; letter-spacing:0.05em;
+  padding:8px 12px; text-align:right;
+  background:var(--surface2); border-bottom:1px solid var(--border);
+  white-space:nowrap; position:sticky; top:0;
+}
+th:first-child { text-align:left; }
+td {
+  padding:11px 12px; border-bottom:1px solid rgba(216,211,197,0.4);
+  text-align:right; font-family:var(--mono); font-size:12px; color:var(--ink2);
+}
+td:first-child { text-align:left; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:var(--surface2); }
+.stock-name { font-size:13px; font-weight:500; color:var(--ink); font-family:var(--sans); }
+.stock-code { font-family:var(--mono); font-size:10px; color:var(--ink3); }
+.badge {
+  display:inline-block; padding:2px 7px; border-radius:4px;
+  font-family:var(--mono); font-size:11px;
+}
+.badge-up { background:var(--green-bg); color:var(--green); }
+.badge-down { background:var(--red-bg); color:var(--red); }
+.rank-num { color:var(--ink3); font-size:11px; width:20px; display:inline-block; }
+.bar-wrap { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.bar-bg { width:50px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:2px; transition:width 0.4s; }
+.star-btn {
+  background:none; border:none; cursor:pointer; color:var(--ink3);
+  font-size:14px; padding:2px 4px; transition:color 0.1s;
+}
+.star-btn:hover { color:var(--gold); }
+.star-btn.on { color:var(--gold); }
+
+/* Loading */
+.loading {
+  display:flex; align-items:center; justify-content:center;
+  padding:48px; gap:10px; color:var(--ink3);
+  font-family:var(--mono); font-size:12px;
+}
+.spinner {
+  width:14px; height:14px; border:2px solid var(--border);
+  border-top-color:var(--ink); border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+
+/* Search */
+.search-wrap {
+  padding:12px 16px; background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex; gap:8px;
+}
+.search-input {
+  flex:1; padding:8px 12px; border:1px solid var(--border);
+  border-radius:8px; font-family:var(--mono); font-size:12px;
+  background:var(--bg); color:var(--ink); outline:none;
+}
+.search-input:focus { border-color:var(--ink); }
+.search-btn {
+  padding:8px 14px; background:var(--ink); color:var(--bg);
+  border:none; border-radius:8px; font-size:12px; cursor:pointer;
+}
+
+/* Watchlist tab */
+.tabs {
+  display:flex; border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.tab {
+  flex:1; padding:10px; border:none; background:none;
+  font-family:var(--sans); font-size:12px; cursor:pointer;
+  border-bottom:2px solid transparent; color:var(--ink3);
+  transition:all 0.15s;
+}
+.tab.active { color:var(--ink); border-bottom-color:var(--ink); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>日本株テーマトラッカー</div>
+  <div class="header-right">
+    <div class="market-pill" id="market-pill">確認中...</div>
+    <button class="refresh-btn" id="refresh-btn" onclick="refresh()" title="更新">↻</button>
+  </div>
+</header>
+
+<div class="index-bar">
+  <div class="idx"><span class="idx-name">日経平均</span><span class="idx-val" id="nk-v">—</span><span id="nk-c">—</span></div>
+  <div class="idx"><span class="idx-name">USD/JPY</span><span class="idx-val" id="fx-v">—</span><span id="fx-c">—</span></div>
+  <div class="idx"><span class="idx-name">最終更新</span><span id="updated-at">—</span></div>
+  <div class="idx"><span class="idx-name">取得銘柄数</span><span id="stock-count">—</span></div>
+</div>
+
+<!-- Mobile theme scroll bar -->
+<div class="mobile-theme-bar" id="mobile-theme-bar"></div>
+
+<div class="status-bar">
+  <span id="status-msg">データ読み込み中...</span>
+  <span id="status-count"></span>
+</div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-label">テーマ</div>
+    <div id="sidebar-themes"></div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('themes')">📊 テーマ</button>
+      <button class="tab" onclick="switchTab('watchlist')">★ ウォッチリスト</button>
+      <button class="tab" onclick="switchTab('search')">🔍 銘柄検索</button>
+    </div>
+
+    <div id="tab-themes">
+      <div id="theme-head"></div>
+      <div class="table-wrap">
+        <div id="stock-table"></div>
+      </div>
+    </div>
+
+    <div id="tab-watchlist" style="display:none">
+      <div class="table-wrap">
+        <div id="watchlist-table"></div>
+      </div>
+    </div>
+
+    <div id="tab-search" style="display:none">
+      <div class="search-wrap">
+        <input class="search-input" id="search-input" placeholder="銘柄コード（例: 7203）または銘柄名" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="search-btn" onclick="doSearch()">検索</button>
+      </div>
+      <div id="search-result"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ===== テーマ定義 =====
+const THEMES = [
+  { id:'ai', icon:'🤖', name:'AI・半導体', desc:'生成AI・データセンター需要を背景に急拡大する半導体・AI関連銘柄。',
+    stocks:[
+      {code:'6857.T',name:'アドバンテスト'},{code:'8035.T',name:'東京エレクトロン'},
+      {code:'6920.T',name:'レーザーテック'},{code:'6723.T',name:'ルネサスエレクトロニクス'},
+      {code:'4063.T',name:'信越化学工業'},{code:'285A.T',name:'キオクシアHD'},
+      {code:'6758.T',name:'ソニーグループ'},{code:'6981.T',name:'村田製作所'},
+      {code:'6645.T',name:'オムロン'},{code:'4186.T',name:'東京応化工業'},
+      {code:'6701.T',name:'NEC'},{code:'6702.T',name:'富士通'},
+      {code:'6976.T',name:'太陽誘電'},{code:'3436.T',name:'SUMCO'},
+      {code:'6146.T',name:'ディスコ'},{code:'6963.T',name:'ローム'},
+      {code:'6967.T',name:'新光電気工業'},{code:'6503.T',name:'三菱電機'},
+      {code:'6506.T',name:'安川電機'},{code:'6861.T',name:'キーエンス'},
+      {code:'6954.T',name:'ファナック'},{code:'6988.T',name:'日東電工'},
+      {code:'4062.T',name:'イビデン'},{code:'6754.T',name:'アンリツ'},
+    ]},
+  { id:'bio', icon:'🧬', name:'バイオ・医療', desc:'革新的な創薬・医療技術で成長するバイオテクノロジー・医療機器銘柄。',
+    stocks:[
+      {code:'4502.T',name:'武田薬品工業'},{code:'4519.T',name:'中外製薬'},
+      {code:'7741.T',name:'HOYA'},{code:'4568.T',name:'第一三共'},
+      {code:'6861.T',name:'キーエンス'},{code:'4543.T',name:'テルモ'},
+      {code:'4507.T',name:'塩野義製薬'},{code:'4578.T',name:'大塚HD'},
+      {code:'4523.T',name:'エーザイ'},{code:'4528.T',name:'小野薬品工業'},
+      {code:'6849.T',name:'日本光電'},{code:'4151.T',name:'協和キリン'},
+      {code:'4911.T',name:'資生堂'},{code:'4506.T',name:'住友ファーマ'},
+      {code:'4536.T',name:'参天製薬'},{code:'4565.T',name:'そーせいグループ'},
+      {code:'7733.T',name:'オリンパス'},{code:'7729.T',name:'東京精密'},
+    ]},
+  { id:'defense', icon:'🛡️', name:'防衛・宇宙', desc:'防衛費増額と宇宙開発への投資拡大で注目度上昇。',
+    stocks:[
+      {code:'7011.T',name:'三菱重工業'},{code:'7012.T',name:'川崎重工業'},
+      {code:'7013.T',name:'IHI'},{code:'6952.T',name:'カシオ計算機'},
+      {code:'6508.T',name:'明電舎'},{code:'9719.T',name:'SCSK'},
+      {code:'6586.T',name:'マキタ'},{code:'1721.T',name:'コムシス'},
+      {code:'9735.T',name:'セコム'},{code:'7751.T',name:'キヤノン'},
+      {code:'6701.T',name:'NEC'},{code:'5631.T',name:'日本製鋼所'},
+      {code:'7721.T',name:'東京計器'},{code:'6773.T',name:'パイオニア'},
+    ]},
+  { id:'ev', icon:'⚡', name:'自動運転・EV', desc:'電動化・自動運転技術の進化で変革期を迎える自動車関連銘柄。',
+    stocks:[
+      {code:'7203.T',name:'トヨタ自動車'},{code:'7267.T',name:'ホンダ'},
+      {code:'6902.T',name:'デンソー'},{code:'7270.T',name:'SUBARU'},
+      {code:'5105.T',name:'TOYO TIRE'},{code:'6594.T',name:'ニデック'},
+      {code:'7211.T',name:'三菱自動車'},{code:'7261.T',name:'マツダ'},
+      {code:'7269.T',name:'スズキ'},{code:'6472.T',name:'NTN'},
+      {code:'6471.T',name:'日本精工'},{code:'7282.T',name:'ヨロズ'},
+      {code:'5802.T',name:'住友電気工業'},{code:'6273.T',name:'SMC'},
+      {code:'7248.T',name:'カルソニックカンセイ'},{code:'7276.T',name:'小糸製作所'},
+    ]},
+  { id:'inbound', icon:'✈️', name:'インバウンド・観光', desc:'訪日外国人急回復と円安恩恵を享受する観光・消費関連銘柄。',
+    stocks:[
+      {code:'9602.T',name:'東宝'},{code:'9001.T',name:'東武鉄道'},
+      {code:'8233.T',name:'高島屋'},{code:'3099.T',name:'三越伊勢丹HD'},
+      {code:'9603.T',name:'エイチ・アイ・エス'},{code:'9007.T',name:'小田急電鉄'},
+      {code:'9008.T',name:'京王電鉄'},{code:'9009.T',name:'京成電鉄'},
+      {code:'2702.T',name:'日本マクドナルドHD'},{code:'8252.T',name:'丸井グループ'},
+      {code:'3197.T',name:'すかいらーくHD'},{code:'9022.T',name:'東海旅客鉄道'},
+      {code:'2651.T',name:'ローソン'},{code:'9020.T',name:'東日本旅客鉄道'},
+      {code:'9021.T',name:'西日本旅客鉄道'},{code:'9101.T',name:'日本郵船'},
+      {code:'9104.T',name:'商船三井'},{code:'9107.T',name:'川崎汽船'},
+    ]},
+  { id:'energy', icon:'🌱', name:'脱炭素・再エネ', desc:'カーボンニュートラル目標達成に向けた再生可能エネルギー・省エネ関連銘柄。',
+    stocks:[
+      {code:'9531.T',name:'東京ガス'},{code:'6501.T',name:'日立製作所'},
+      {code:'5020.T',name:'ENEOSホールディングス'},{code:'6988.T',name:'日東電工'},
+      {code:'6762.T',name:'TDK'},{code:'9502.T',name:'中部電力'},
+      {code:'9503.T',name:'関西電力'},{code:'5713.T',name:'住友金属鉱山'},
+      {code:'5714.T',name:'DOWAホールディングス'},{code:'6504.T',name:'富士電機'},
+      {code:'6506.T',name:'安川電機'},{code:'7004.T',name:'日立造船'},
+      {code:'1820.T',name:'西松建設'},{code:'9517.T',name:'イーレックス'},
+      {code:'9501.T',name:'東京電力HD'},{code:'5401.T',name:'日本製鉄'},
+      {code:'1605.T',name:'INPEX'},{code:'6361.T',name:'荏原製作所'},
+    ]},
+  { id:'game', icon:'🎮', name:'ゲーム・エンタメ', desc:'グローバル展開するゲーム・エンタメ銘柄。スマホ・コンソール・アニメIPが収益を牽引。',
+    stocks:[
+      {code:'7974.T',name:'任天堂'},{code:'9684.T',name:'スクウェア・エニックスHD'},
+      {code:'3765.T',name:'ガンホー・オンライン'},{code:'9766.T',name:'コナミグループ'},
+      {code:'4755.T',name:'楽天グループ'},{code:'2432.T',name:'ディー・エヌ・エー'},
+      {code:'3793.T',name:'ドリコム'},{code:'3635.T',name:'コーエーテクモHD'},
+      {code:'2121.T',name:'ミクシィ'},{code:'3656.T',name:'KLab'},
+      {code:'9697.T',name:'カプコン'},{code:'3668.T',name:'コロプラ'},
+      {code:'3911.T',name:'Aiming'},{code:'9843.T',name:'ニトリHD'},
+      {code:'4680.T',name:'ラウンドワン'},{code:'9602.T',name:'東宝'},
+    ]},
+  { id:'fintech', icon:'💳', name:'フィンテック・決済', desc:'キャッシュレス化普及とデジタル金融サービス拡大で成長する銘柄。',
+    stocks:[
+      {code:'8316.T',name:'三井住友FG'},{code:'8306.T',name:'三菱UFJ FG'},
+      {code:'7182.T',name:'ゆうちょ銀行'},{code:'8473.T',name:'SBIホールディングス'},
+      {code:'4307.T',name:'野村総合研究所'},{code:'8591.T',name:'オリックス'},
+      {code:'8601.T',name:'大和証券グループ本社'},{code:'8604.T',name:'野村HD'},
+      {code:'8630.T',name:'SOMPO HD'},{code:'8750.T',name:'第一生命HD'},
+      {code:'8725.T',name:'三井住友海上グループHD'},{code:'8355.T',name:'静岡銀行'},
+      {code:'3769.T',name:'GMOペイメントゲートウェイ'},{code:'4385.T',name:'メルカリ'},
+      {code:'8411.T',name:'みずほFG'},{code:'8253.T',name:'クレディセゾン'},
+      {code:'8308.T',name:'りそなHD'},{code:'8698.T',name:'マネックスグループ'},
+    ]},
+  { id:'reit', icon:'🏙️', name:'不動産・REIT', desc:'インバウンド需要回復と都市再開発で恩恵を受ける不動産・REIT銘柄。',
+    stocks:[
+      {code:'8801.T',name:'三井不動産'},{code:'8802.T',name:'三菱地所'},
+      {code:'3289.T',name:'東急不動産HD'},{code:'8830.T',name:'住友不動産'},
+      {code:'3283.T',name:'日本プロロジスリート'},{code:'8804.T',name:'東京建物'},
+      {code:'8803.T',name:'平和不動産'},{code:'8951.T',name:'日本ビルファンド'},
+      {code:'8952.T',name:'ジャパンリアルエステイト'},{code:'8953.T',name:'日本リテールファンド'},
+      {code:'8954.T',name:'オリックス不動産投資法人'},{code:'8960.T',name:'ユナイテッド・アーバン'},
+      {code:'3308.T',name:'日本ヘルスケア投資法人'},{code:'8818.T',name:'京阪神ビルディング'},
+      {code:'3231.T',name:'野村不動産HD'},{code:'8848.T',name:'レオパレス21'},
+    ]},
+  { id:'trading', icon:'⛏️', name:'商社・資源', desc:'資源価格上昇と新興国需要を取り込む総合商社・資源関連銘柄。',
+    stocks:[
+      {code:'8058.T',name:'三菱商事'},{code:'8031.T',name:'三井物産'},
+      {code:'8001.T',name:'伊藤忠商事'},{code:'8002.T',name:'丸紅'},
+      {code:'8053.T',name:'住友商事'},{code:'1605.T',name:'INPEX'},
+      {code:'5713.T',name:'住友金属鉱山'},{code:'5714.T',name:'DOWAホールディングス'},
+      {code:'8015.T',name:'豊田通商'},{code:'8025.T',name:'阪和興業'},
+      {code:'8020.T',name:'兼松'},{code:'8075.T',name:'神鋼商事'},
+      {code:'5401.T',name:'日本製鉄'},{code:'5411.T',name:'ジェイ エフ イー HD'},
+      {code:'5406.T',name:'神戸製鋼所'},{code:'3407.T',name:'旭化成'},
+    ]},
+];
+
+// ===== State =====
+let prices = {};
+let currentTheme = THEMES[0];
+let watchlist = JSON.parse(localStorage.getItem('jp_wl2') || '[]');
+let currentTab = 'themes';
+let themeAvg = {};
+
+// ===== Init =====
+window.onload = async () => {
+  renderSidebar();
+  renderMobileBar();
+  selectTheme(THEMES[0]);
+  await loadPrices();
+  setInterval(loadPrices, 5 * 60 * 1000); // 5分ごとに自動更新
+};
+
+// ===== Load prices from server =====
+async function loadPrices() {
+  try {
+    const res = await fetch('/api/prices');
+    if (!res.ok) throw new Error('API error');
+    const json = await res.json();
+    prices = json.prices || {};
+
+    // インデックス表示
+    updateIndex();
+
+    // テーマ平均計算
+    calcThemeAvg();
+
+    // 更新時刻
+    if (json.updated_at) {
+      const d = new Date(json.updated_at);
+      document.getElementById('updated-at').textContent =
+        `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    document.getElementById('stock-count').textContent = json.count + '銘柄';
+    document.getElementById('status-msg').textContent =
+      json.status === 'updating' ? '⟳ 株価更新中...' : '✓ データ取得済み';
+
+    renderSidebar();
+    renderMobileBar();
+    renderThemeHead();
+    renderStockTable();
+    if (currentTab === 'watchlist') renderWatchlist();
+  } catch(e) {
+    document.getElementById('status-msg').textContent = '⚠ データ取得中...しばらくお待ちください';
+  }
+}
+
+function updateIndex() {
+  const nk = prices['^N225'];
+  const fx = prices['USDJPY=X'];
+  if (nk) {
+    document.getElementById('nk-v').textContent = parseFloat(nk.price).toLocaleString('ja-JP', {maximumFractionDigits:1});
+    const el = document.getElementById('nk-c');
+    el.textContent = `${nk.changePct>=0?'+':''}${nk.changePct}%`;
+    el.className = nk.changePct >= 0 ? 'up' : 'down';
+  }
+  if (fx) {
+    document.getElementById('fx-v').textContent = parseFloat(fx.price).toFixed(2);
+    const el = document.getElementById('fx-c');
+    el.textContent = `${fx.changePct>=0?'+':''}${fx.changePct}%`;
+    el.className = fx.changePct >= 0 ? 'up' : 'down';
+  }
+  // Market status
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const isOpen = (h > 9 || (h===9&&m>=0)) && h < 15;
+  document.getElementById('market-pill').textContent = isOpen ? '🟢 取引中' : '⚪ 時間外';
+}
+
+function calcThemeAvg() {
+  for (const t of THEMES) {
+    const vals = t.stocks.map(s => parseFloat(prices[s.code]?.changePct||0)).filter(v=>!isNaN(v));
+    themeAvg[t.id] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  }
+}
+
+// ===== Sidebar =====
+function renderSidebar() {
+  document.getElementById('sidebar-themes').innerHTML = THEMES.map(t => {
+    const chg = themeAvg[t.id] ?? null;
+    const chgStr = chg !== null ? `${chg>=0?'+':''}${chg.toFixed(2)}%` : '—';
+    const cls = chg >= 0 ? 'up' : 'down';
+    return `<button class="theme-btn ${currentTheme.id===t.id?'active':''}" onclick="selectTheme(THEMES.find(x=>x.id==='${t.id}'))">
+      <div class="theme-btn-left">
+        <span class="theme-icon">${t.icon}</span>
+        <span class="theme-name">${t.name}</span>
+      </div>
+      <span class="theme-chg ${cls}">${chgStr}</span>
+    </button>`;
+  }).join('');
+}
+
+function renderMobileBar() {
+  document.getElementById('mobile-theme-bar').innerHTML = THEMES.map(t =>
+    `<button class="mobile-theme-btn ${currentTheme.id===t.id?'active':''}" onclick="selectTheme(THEMES.find(x=>x.id==='${t.id}'))">${t.icon} ${t.name}</button>`
+  ).join('');
+}
+
+// ===== Select theme =====
+function selectTheme(t) {
+  currentTheme = t;
+  switchTab('themes');
+  renderSidebar();
+  renderMobileBar();
+  renderThemeHead();
+  renderStockTable();
+}
+
+// ===== Theme header =====
+function renderThemeHead() {
+  const t = currentTheme;
+  const chg = themeAvg[t.id] ?? null;
+  const chgStr = chg !== null ? `${chg>=0?'+':''}${chg.toFixed(2)}%` : '—';
+  const cls = chg !== null ? (chg>=0?'up':'down') : '';
+  document.getElementById('theme-head').innerHTML = `
+    <div class="theme-head">
+      <div class="theme-head-top">
+        <div class="theme-head-left">
+          <span class="theme-head-icon">${t.icon}</span>
+          <span class="theme-head-title">${t.name}</span>
+        </div>
+        <div class="theme-head-stats">
+          <div class="stat">
+            <div class="stat-label">テーマ騰落率</div>
+            <div class="stat-val ${cls}">${chgStr}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">構成銘柄</div>
+            <div class="stat-val">${t.stocks.length}</div>
+          </div>
+        </div>
+      </div>
+      <div class="theme-head-desc">${t.desc}</div>
+    </div>`;
+}
+
+// ===== Stock table =====
+function renderStockTable() {
+  const t = currentTheme;
+  const sorted = [...t.stocks].sort((a,b) => {
+    const pa = parseFloat(prices[a.code]?.changePct ?? -999);
+    const pb = parseFloat(prices[b.code]?.changePct ?? -999);
+    return pb - pa;
+  });
+  const maxPct = Math.max(...sorted.map(s=>Math.abs(parseFloat(prices[s.code]?.changePct||0))),0.01);
+
+  const rows = sorted.map((s,i) => {
+    const d = prices[s.code];
+    const price = d ? parseFloat(d.price).toLocaleString('ja-JP') + '円' : '—';
+    const chg   = d ? (d.change>=0?'+':'')+parseFloat(d.change).toLocaleString('ja-JP')+'円' : '—';
+    const pct   = d ? parseFloat(d.changePct) : null;
+    const pctStr = pct!==null ? `${pct>=0?'+':''}${pct.toFixed(2)}%` : '—';
+    const isUp  = pct!==null ? pct>=0 : null;
+    const cls   = isUp===null?'':(isUp?'up':'down');
+    const bCls  = isUp===null?'':(isUp?'badge-up':'badge-down');
+    const vol   = d?.volume ? (d.volume/10000).toFixed(0)+'万株' : '—';
+    const barW  = pct!==null ? Math.abs(pct)/maxPct*100 : 0;
+    const barC  = isUp ? '#1a6b3c' : '#c0392b';
+    const isWatched = watchlist.some(w=>w.code===s.code);
+    return `<tr>
+      <td>
+        <span class="rank-num">${i+1}</span>
+        <span class="stock-name">${s.name}</span><br>
+        <span style="margin-left:20px" class="stock-code">${s.code.replace('.T','')}</span>
+      </td>
+      <td>${price}</td>
+      <td class="${cls}">${chg}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill" style="width:${barW}%;background:${barC}"></div></div>
+          <span class="badge ${bCls}">${pctStr}</span>
+        </div>
+      </td>
+      <td>${vol}</td>
+      <td><button class="star-btn ${isWatched?'on':''}" onclick="toggleWatch('${s.code}','${s.name}')">${isWatched?'★':'☆'}</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('stock-table').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>銘柄</th><th>現在値</th><th>前日比</th><th>騰落率</th><th>出来高</th><th>WL</th>
+      </tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:32px;color:#9a9080;font-family:var(--mono);font-size:12px">データ取得中...</td></tr>'}</tbody>
+    </table>`;
+}
+
+// ===== Watchlist =====
+function toggleWatch(code, name) {
+  const idx = watchlist.findIndex(w=>w.code===code);
+  if (idx>=0) watchlist.splice(idx,1);
+  else watchlist.push({code,name});
+  localStorage.setItem('jp_wl2', JSON.stringify(watchlist));
+  renderStockTable();
+  if (currentTab==='watchlist') renderWatchlist();
+}
+
+function renderWatchlist() {
+  if (!watchlist.length) {
+    document.getElementById('watchlist-table').innerHTML =
+      '<div style="text-align:center;padding:48px;color:#9a9080;font-size:13px">☆ 銘柄テーブルの★ボタンで追加できます</div>';
+    return;
+  }
+  const rows = watchlist.map(w => {
+    const d = prices[w.code];
+    const price = d ? parseFloat(d.price).toLocaleString('ja-JP')+'円' : '—';
+    const pct = d ? parseFloat(d.changePct) : null;
+    const pctStr = pct!==null ? `${pct>=0?'+':''}${pct.toFixed(2)}%` : '—';
+    const bCls = pct!==null ? (pct>=0?'badge-up':'badge-down') : '';
+    return `<tr>
+      <td><span class="stock-name">${w.name}</span><br><span class="stock-code">${w.code.replace('.T','')}</span></td>
+      <td>${price}</td>
+      <td><span class="badge ${bCls}">${pctStr}</span></td>
+      <td><button class="star-btn on" onclick="toggleWatch('${w.code}','${w.name}')">★</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('watchlist-table').innerHTML = `
+    <table>
+      <thead><tr><th>銘柄</th><th>現在値</th><th>騰落率</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ===== Search =====
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const el = document.getElementById('search-result');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>検索中...</div>';
+
+  // 銘柄コードとして検索
+  let sym = q.toUpperCase();
+  if (!sym.endsWith('.T') && /^\d{4}/.test(sym)) sym = sym + '.T';
+
+  // まずキャッシュを検索
+  if (prices[sym]) {
+    const d = prices[sym];
+    showSearchResult(sym, q, d);
+    return;
+  }
+
+  // テーマ内の銘柄名で検索
+  const found = THEMES.flatMap(t=>t.stocks).find(s=>s.name.includes(q)||s.code.startsWith(q));
+  if (found && prices[found.code]) {
+    showSearchResult(found.code, found.name, prices[found.code]);
+    return;
+  }
+
+  // サーバーに個別取得リクエスト
+  try {
+    const code = sym.replace('.T','');
+    const res = await fetch(`/api/quote/${code}`);
+    if (res.ok) {
+      const d = await res.json();
+      showSearchResult(d.symbol||sym, q, d);
+    } else {
+      el.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:12px;color:#c0392b">銘柄が見つかりませんでした。コード（例: 7203）で検索してください。</div>';
+    }
+  } catch(e) {
+    el.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:12px;color:#c0392b">取得に失敗しました。</div>';
+  }
+}
+
+function showSearchResult(code, name, d) {
+  const pct = parseFloat(d.changePct);
+  const isUp = pct >= 0;
+  document.getElementById('search-result').innerHTML = `
+    <div style="padding:16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="stock-name" style="font-size:15px">${name}</div>
+          <div class="stock-code">${code.replace('.T','')}</div>
+        </div>
+        <button class="star-btn ${watchlist.some(w=>w.code===code)?'on':''}" style="font-size:18px"
+          onclick="toggleWatch('${code}','${name}');this.classList.toggle('on');this.textContent=this.classList.contains('on')?'★':'☆'">
+          ${watchlist.some(w=>w.code===code)?'★':'☆'}
+        </button>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:20px">
+        <div><div class="stat-label">現在値</div><div style="font-family:var(--mono);font-size:20px">${parseFloat(d.price).toLocaleString('ja-JP')}円</div></div>
+        <div><div class="stat-label">前日比</div><div class="stat-val ${isUp?'up':'down'}" style="font-size:18px">${d.change>=0?'+':''}${parseFloat(d.change).toLocaleString('ja-JP')}円</div></div>
+        <div><div class="stat-label">騰落率</div><span class="badge ${isUp?'badge-up':'badge-down'}" style="font-size:14px;margin-top:4px;display:inline-block">${pct>=0?'+':''}${pct.toFixed(2)}%</span></div>
+      </div>
+    </div>`;
+}
+
+// ===== Tab =====
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-themes').style.display = tab==='themes'?'':'none';
+  document.getElementById('tab-watchlist').style.display = tab==='watchlist'?'':'none';
+  document.getElementById('tab-search').style.display = tab==='search'?'':'none';
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['themes','watchlist','search'][i]===tab);
+  });
+  if (tab==='watchlist') renderWatchlist();
+}
+
+// ===== Refresh =====
+async function refresh() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  await loadPrices();
+  btn.classList.remove('spinning');
+}
+</script>
+</body>
+</html>
