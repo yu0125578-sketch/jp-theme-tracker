@@ -45,32 +45,9 @@ SYMBOLS = list(dict.fromkeys([
     "4528.T","4151.T","4911.T","4506.T","7733.T","6849.T",
 ]))
 
-def load_cache():
-    if CACHE_FILE.exists():
-        try:
-            with open(CACHE_FILE) as f:
-                return json.load(f)
-        except:
-            pass
-    return {"prices": {}, "updated_at": None, "status": "initializing"}
-
-def save_cache(data):
-    try:
-        with open(CACHE_FILE, "w") as f:
-            json.dump(data, f)
-    except Exception as e:
-        log.error(f"キャッシュ保存エラー: {e}")
-
-cache = load_cache()
-cache_lock = threading.Lock()
-
 def fetch_prices():
-    try:
-        import yfinance as yf
-        import pandas as pd
-    except ImportError:
-        log.error("yfinance未インストール")
-        return {}
+    import yfinance as yf
+    import pandas as pd
 
     result = {}
     log.info(f"株価取得開始: {len(SYMBOLS)}銘柄")
@@ -79,7 +56,7 @@ def fetch_prices():
         batch = SYMBOLS[i:i+50]
         try:
             df = yf.download(batch, period="5d", interval="1d",
-                           auto_adjust=True, progress=False, threads=True, timeout=60)
+                             auto_adjust=True, progress=False, threads=True, timeout=60)
             if df.empty:
                 continue
             if isinstance(df.columns, pd.MultiIndex):
@@ -130,47 +107,78 @@ def fetch_prices():
     log.info(f"✓ 合計 {len(result)} 銘柄取得完了")
     return result
 
+def save_cache(data):
+    with open(CACHE_FILE, "w") as f:
+        json.dump(data, f)
+
+def load_cache():
+    if CACHE_FILE.exists():
+        try:
+            with open(CACHE_FILE) as f:
+                return json.load(f)
+        except: pass
+    return None
+
 def refresh_loop():
     while True:
-        with cache_lock:
-            cache["status"] = "updating"
-        data = fetch_prices()
-        with cache_lock:
+        try:
+            data = fetch_prices()
             if data:
-                cache["prices"] = data
-                cache["updated_at"] = datetime.now().isoformat()
-                cache["status"] = "ok"
-                save_cache(cache)
+                payload = {
+                    "prices": data,
+                    "updated_at": datetime.now().isoformat(),
+                    "status": "ok"
+                }
+                save_cache(payload)
+                log.info("キャッシュ保存完了")
+        except Exception as e:
+            log.error(f"更新エラー: {e}")
         time.sleep(1800)
+
+# ===== 起動時に即座に取得（同期） =====
+log.info("起動時株価取得開始...")
+try:
+    _data = fetch_prices()
+    if _data:
+        _payload = {
+            "prices": _data,
+            "updated_at": datetime.now().isoformat(),
+            "status": "ok"
+        }
+        save_cache(_payload)
+        log.info(f"起動時取得完了: {len(_data)}銘柄")
+except Exception as e:
+    log.error(f"起動時取得エラー: {e}")
+
+# 30分ごとの更新はバックグラウンドで
+threading.Thread(target=refresh_loop, daemon=True).start()
 
 @app.route("/api/prices")
 def api_prices():
-    with cache_lock:
+    data = load_cache()
+    if data:
         return jsonify({
-            "prices": cache["prices"],
-            "updated_at": cache["updated_at"],
-            "count": len(cache["prices"]),
-            "status": cache["status"],
+            "prices": data.get("prices", {}),
+            "updated_at": data.get("updated_at"),
+            "count": len(data.get("prices", {})),
+            "status": data.get("status", "ok"),
         })
+    return jsonify({"prices": {}, "updated_at": None, "count": 0, "status": "initializing"})
 
 @app.route("/api/status")
 def api_status():
-    with cache_lock:
-        return jsonify({
-            "ok": cache["status"] == "ok",
-            "status": cache["status"],
-            "count": len(cache["prices"]),
-            "updated_at": cache["updated_at"],
-        })
+    data = load_cache()
+    count = len(data.get("prices", {})) if data else 0
+    return jsonify({"ok": count > 0, "count": count})
 
 @app.route("/api/quote/<symbol>")
 def api_quote(symbol):
     sym = symbol.upper()
     if not sym.endswith(".T") and sym[0].isdigit():
         sym = sym + ".T"
-    with cache_lock:
-        if sym in cache["prices"]:
-            return jsonify({"symbol": sym, **cache["prices"][sym]})
+    data = load_cache()
+    if data and sym in data.get("prices", {}):
+        return jsonify({"symbol": sym, **data["prices"][sym]})
     try:
         import yfinance as yf
         t = yf.Ticker(sym)
@@ -192,10 +200,3 @@ def serve(path):
     if path and os.path.exists(os.path.join("static", path)):
         return send_from_directory("static", path)
     return send_from_directory("static", "index.html")
-
-t = threading.Thread(target=refresh_loop, daemon=True)
-t.start()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5050))
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
